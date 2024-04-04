@@ -26,3 +26,9 @@ Features and notes:
 * By default expects BIOS ROM: cbm-pc10sd-bios-v4.38-318085-05-C72A.bin
 * Booting from floppy disk image or hard disk image should work.
 
+Information on my blog:
+* [Commodore PC 20-III Emulator](https://kobolt.github.io/article-232.html)
+
+YouTube:
+* [GW-BASIC](https://www.youtube.com/watch?v=PFVnMGIvJB8)
+
