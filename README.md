@@ -31,4 +31,5 @@ Information on my blog:
 
 YouTube:
 * [GW-BASIC](https://www.youtube.com/watch?v=PFVnMGIvJB8)
+* [Rogue](https://www.youtube.com/watch?v=a-5ppUwTYrw)
 
