@@ -142,3 +142,18 @@ void mos5720_mouse_data(mos5720_t *mos5720, uint8_t data)
 
 
 
+bool mos5720_uart_chip_select(mos5720_t *mos5720)
+{
+  if (((mos5720_t *)mos5720)->mode == 0x89) { /* Enabled by BIOS. */
+    return true;
+  } else if (((mos5720_t *)mos5720)->mode == 0x81) { /* Disabled by BIOS. */
+    return false;
+  } else if (((mos5720_t *)mos5720)->mode == 0xD9) { /* Enabled after boot. */
+    return true;
+  } else { /* Unknown behaviour. */
+    return false;
+  }
+}
+
+
+

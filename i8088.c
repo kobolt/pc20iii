@@ -1047,6 +1047,111 @@ static void modrm_set_rm_eaddr_16(i8088_t *cpu, mem_t *mem, uint8_t modrm,
 
 
 
+static void modrm_void_rm_16(i8088_t *cpu, mem_t *mem, uint8_t modrm)
+{
+  uint16_t disp;
+  i8088_trace_op_bit_size(16);
+
+  switch (modrm_mod(modrm)) {
+  case MOD_REGISTER:
+    switch (modrm_rm(modrm)) {
+    case REG16_AX:
+      i8088_trace_op_dst(false, "ax");
+      return;
+    case REG16_CX:
+      i8088_trace_op_dst(false, "cx");
+      return;
+    case REG16_DX:
+      i8088_trace_op_dst(false, "dx");
+      return;
+    case REG16_BX:
+      i8088_trace_op_dst(false, "bx");
+      return;
+    case REG16_SP:
+      i8088_trace_op_dst(false, "sp");
+      return;
+    case REG16_BP:
+      i8088_trace_op_dst(false, "bp");
+      return;
+    case REG16_SI:
+      i8088_trace_op_dst(false, "si");
+      return;
+    case REG16_DI:
+      i8088_trace_op_dst(false, "di");
+      return;
+    }
+    break;
+
+  case MOD_DISP_LO_SIGN:
+    disp = (int8_t)fetch(cpu, mem);
+    i8088_trace_op_disp(disp);
+    break;
+
+  case MOD_DISP_HI_LO:
+    disp  = fetch(cpu, mem);
+    disp += fetch(cpu, mem) * 0x100;
+    i8088_trace_op_disp(disp);
+    break;
+
+  case MOD_DISP_ZERO:
+    disp = 0;
+    break;
+  }
+
+  switch (modrm_rm(modrm)) {
+  case EADDR_BX_SI:
+    i8088_trace_op_dst(true, "bx+si");
+    i8088_trace_op_seg_default("ds");
+    break;
+
+  case EADDR_BX_DI:
+    i8088_trace_op_dst(true, "bx+di");
+    i8088_trace_op_seg_default("ds");
+    break;
+
+  case EADDR_BP_SI:
+    i8088_trace_op_dst(true, "bp+si");
+    i8088_trace_op_seg_default("ss");
+    break;
+
+  case EADDR_BP_DI:
+    i8088_trace_op_dst(true, "bp+di");
+    i8088_trace_op_seg_default("ss");
+    break;
+
+  case EADDR_SI:
+    i8088_trace_op_dst(true, "si");
+    i8088_trace_op_seg_default("ds");
+    break;
+
+  case EADDR_DI:
+    i8088_trace_op_dst(true, "di");
+    i8088_trace_op_seg_default("ds");
+    break;
+
+  case EADDR_BP:
+    if (modrm_mod(modrm) == MOD_DISP_ZERO) {
+      /* Direct Addressing */
+      disp  = fetch(cpu, mem);
+      disp += fetch(cpu, mem) * 0x100;
+      i8088_trace_op_disp(disp);
+      i8088_trace_op_dst(true, "");
+      i8088_trace_op_seg_default("ds");
+    } else {
+      i8088_trace_op_dst(true, "bp");
+      i8088_trace_op_seg_default("ss");
+    }
+    break;
+
+  case EADDR_BX:
+    i8088_trace_op_dst(true, "bx");
+    i8088_trace_op_seg_default("ds");
+    break;
+  }
+}
+
+
+
 static uint16_t modrm_get_reg_16(i8088_t *cpu, uint8_t modrm)
 {
   switch (modrm_reg(modrm)) {
@@ -4541,6 +4646,9 @@ i8088_execute_segment_override:
   case 0xDE:
   case 0xDF:
     i8088_trace_op_mnemonic("esc");
+    /* This is needed to advance the instruction pointer correctly. */
+    modrm = fetch(cpu, mem);
+    modrm_void_rm_16(cpu, mem, modrm);
     break;
 
   case 0xE0: /* LOOPNE imm */

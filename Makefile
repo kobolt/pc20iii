@@ -1,5 +1,5 @@
-OBJECTS=main.o mem.o i8088.o i8088_trace.o io.o fe2010.o mos5720.o fdc9268.o m6242.o xthdc.o console.o debugger.o
-CFLAGS=-Wall -Wextra -DCPU_RELAX -DCPU_TRACE
+OBJECTS=main.o mem.o i8088.o i8088_trace.o io.o fe2010.o mos5720.o fdc9268.o m6242.o xthdc.o i8250.o console.o debugger.o
+CFLAGS=-Wall -Wextra -DCPU_RELAX -DCPU_TRACE -DBREAKPOINT
 LDFLAGS=-lncurses
 
 all: pc20iii
@@ -35,6 +35,9 @@ m6242.o: m6242.c
 	gcc -c $^ ${CFLAGS}
 
 xthdc.o: xthdc.c
+	gcc -c $^ ${CFLAGS}
+
+i8250.o: i8250.c
 	gcc -c $^ ${CFLAGS}
 
 console.o: console.c

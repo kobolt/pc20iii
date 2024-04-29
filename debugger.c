@@ -11,8 +11,13 @@
 #include "fe2010.h"
 #include "fdc9268.h"
 #include "xthdc.h"
+#include "i8250.h"
 
 #define DEBUGGER_ARGS 3
+
+#ifdef BREAKPOINT
+int32_t debugger_breakpoint = -1;
+#endif
 
 
 
@@ -23,12 +28,16 @@ static void debugger_help(void)
   fprintf(stdout, "  ? | h          - Help\n");
   fprintf(stdout, "  c              - Continue\n");
   fprintf(stdout, "  s              - Step\n");
+#ifdef BREAKPOINT
+  fprintf(stdout, "  k <addr>       - Breakpoint\n");
+#endif /* BREAKPOINT */
   fprintf(stdout, "  t [extended]   - CPU Trace\n");
   fprintf(stdout, "  i              - Interrupt Trace\n");
   fprintf(stdout, "  d <addr> [end] - Dump Memory\n");
   fprintf(stdout, "  g              - FE2010 Status\n");
   fprintf(stdout, "  f              - FDC9268 Trace\n");
   fprintf(stdout, "  x              - XT HDC Trace\n");
+  fprintf(stdout, "  e              - COM1/8250 Trace\n");
   fprintf(stdout, "  a <filename>   - Load Floppy A:\n");
   fprintf(stdout, "  b <filename>   - Load Floppy B:\n");
   fprintf(stdout, "  A <filename>   - Save Floppy A:\n");
@@ -87,6 +96,24 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010, fdc9268_t *fdc9268)
     } else if (strncmp(argv[0], "s", 1) == 0) {
       return true;
 
+#ifdef BREAKPOINT
+    } else if (strncmp(argv[0], "k", 1) == 0) {
+      if (argc >= 2) {
+        sscanf(argv[1], "%4x", &value1);
+        debugger_breakpoint = (value1 & 0xFFFF);
+        fprintf(stdout, "Breakpoint at 0x%04x set.\n",
+          debugger_breakpoint);
+      } else {
+        if (debugger_breakpoint < 0) {
+          fprintf(stdout, "Missing argument!\n");
+        } else {
+          fprintf(stdout, "Breakpoint at 0x%04x removed.\n",
+            debugger_breakpoint);
+        }
+        debugger_breakpoint = -1;
+      }
+#endif /* BREAKPOINT */
+
     } else if (strncmp(argv[0], "t", 1) == 0) {
       if (argc >= 2 && strlen(argv[1]) > 0) {
         i8088_trace_dump(stdout, true);
@@ -121,6 +148,9 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010, fdc9268_t *fdc9268)
 
     } else if (strncmp(argv[0], "x", 1) == 0) {
       xthdc_trace_dump(stdout);
+
+    } else if (strncmp(argv[0], "e", 1) == 0) {
+      i8250_trace_dump(stdout);
 
     } else if (strncmp(argv[0], "a", 1) == 0) {
       if (argc >= 2) {

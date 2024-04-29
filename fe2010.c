@@ -22,6 +22,8 @@
 #define I8237_DMA_CH3_ADDRESS    0x06
 #define I8237_DMA_CH3_WORD_COUNT 0x07
 
+#define I8237_DMA_MODE_REGISTER 0x0B
+
 #define I8237_DMA_CH0_PAGE 0x87
 #define I8237_DMA_CH1_PAGE 0x83
 #define I8237_DMA_CH2_PAGE 0x81
@@ -37,6 +39,9 @@
 
 #define PIT_MODE_INT  0 /* Interrupt on Terminal Count. */
 #define PIT_MODE_SWRG 3 /* Square Wave Rate Generator. */
+
+#define DMA_MODE_WRITE 1
+#define DMA_MODE_READ  2
 
 
 
@@ -131,6 +136,14 @@ static void i8237_dma_reg_write(void *fe2010, uint16_t port, uint8_t value)
     ((fe2010_t *)fe2010)->dma_flip_flop = true;
     ((fe2010_t *)fe2010)->dma_reg[port & 7] = value;
   }
+}
+
+
+
+static void i8237_dma_mode_write(void *fe2010, uint16_t port, uint8_t value)
+{
+  (void)port;
+  ((fe2010_t *)fe2010)->dma_mode[value & 3] = value & 0xFC;
 }
 
 
@@ -362,6 +375,9 @@ void fe2010_init(fe2010_t *fe2010, io_t *io, i8088_t *cpu, mem_t *mem)
     io->write[i].cookie = fe2010;
   }
 
+  io->write[I8237_DMA_MODE_REGISTER].func = i8237_dma_mode_write;
+  io->write[I8237_DMA_MODE_REGISTER].cookie = fe2010;
+
   io->write[I8237_DMA_CH0_PAGE].func = i8237_dma_page_write;
   io->write[I8237_DMA_CH0_PAGE].cookie = fe2010;
   io->write[I8237_DMA_CH1_PAGE].func = i8237_dma_page_write;
@@ -453,6 +469,11 @@ void fe2010_dma_write(fe2010_t *fe2010, int channel_no,
   uint16_t count;
   size_t i;
 
+  if (((fe2010->dma_mode[channel_no] >> 2) & 0x3) != DMA_MODE_WRITE) {
+    /* Only write to memory if in write mode! */
+    return;
+  }
+
   address = fe2010->dma_reg[channel_no * 2] +
            (fe2010->dma_page[channel_no] << 16);
   count = fe2010->dma_reg[(channel_no * 2) + 1];
@@ -470,6 +491,11 @@ void fe2010_dma_read(fe2010_t *fe2010, int channel_no,
   uint32_t address;
   uint16_t count;
   size_t i;
+
+  if (((fe2010->dma_mode[channel_no] >> 2) & 0x3) != DMA_MODE_READ) {
+    /* Only read from memory if in read mode! */
+    return;
+  }
 
   address = fe2010->dma_reg[channel_no * 2] +
            (fe2010->dma_page[channel_no] << 16);
@@ -548,6 +574,7 @@ void fe2010_dump(FILE *fh, fe2010_t *fe2010)
     fprintf(fh, "  Address   : 0x%04x\n", fe2010->dma_reg[i * 2]);
     fprintf(fh, "  Word Count: 0x%04x\n", fe2010->dma_reg[(i * 2) + 1]);
     fprintf(fh, "  Page      : 0x%02x\n", fe2010->dma_page[i]);
+    fprintf(fh, "  Mode      : 0x%02x\n", fe2010->dma_mode[i]);
   }
 
   for (i = 0; i < 3; i++) {

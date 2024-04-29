@@ -2,6 +2,7 @@
 #define _M6242_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "io.h"
 
 typedef struct m6242_s {

@@ -343,8 +343,10 @@ void i8088_trace_end(void)
 void i8088_trace_int(uint8_t int_no, i8088_t *cpu)
 {
   snprintf(trace_int_buffer[trace_int_buffer_n], I8088_TRACE_INT_MAX,
-    "int%02x : ax=%04x bx=%04x cx=%04x dx=%04x si=%04x di=%04x\n",
-    int_no, cpu->ax, cpu->bx, cpu->cx, cpu->dx, cpu->si, cpu->di);
+    "int%02x : ax=%04x bx=%04x cx=%04x dx=%04x "
+    "si=%04x di=%04x cs:ip=%04x:%04x\n",
+    int_no, cpu->ax, cpu->bx, cpu->cx, cpu->dx,
+    cpu->si, cpu->di, cpu->cs, cpu->ip);
 
   trace_int_buffer_n++;
   if (trace_int_buffer_n >= I8088_TRACE_INT_BUFFER_SIZE) {

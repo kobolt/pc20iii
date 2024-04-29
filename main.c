@@ -17,6 +17,7 @@
 #include "fdc9268.h"
 #include "m6242.h"
 #include "xthdc.h"
+#include "i8250.h"
 #include "console.h"
 #include "debugger.h"
 #include "panic.h"
@@ -32,6 +33,7 @@ static mos5720_t mos5720;
 static fdc9268_t fdc9268;
 static m6242_t m6242;
 static xthdc_t xthdc;
+static i8250_t i8250;
 
 static bool debugger_break = false;
 static char panic_msg[80];
@@ -73,6 +75,7 @@ static void display_help(const char *progname)
     "  -s SPT    Override SPT sectors-per-track for floppy images.\n"
     "  -r FILE   Use FILE for BIOS ROM instead of the default.\n"
     "  -x ADDR   Load BIOS ROM at (hex) ADDR instead of the default.\n"
+    "  -t TTY    Passthrough COM1 to TTY device.\n"
     "\n");
   fprintf(stdout,
     "Default BIOS ROM '%s' @ 0x%05x\n", BIOS_ROM_FILENAME, BIOS_ROM_ADDRESS);
@@ -91,12 +94,13 @@ int main(int argc, char *argv[])
   char *floppy_a_image = NULL;
   char *floppy_b_image = NULL;
   char *hard_disk_image = NULL;
+  char *tty_device = NULL;
   int floppy_image_spt = 0;
 
   panic_msg[0] = '\0';
   signal(SIGINT, sig_handler);
 
-  while ((c = getopt(argc, argv, "ha:b:w:s:r:x:")) != -1) {
+  while ((c = getopt(argc, argv, "ha:b:w:s:r:x:t:")) != -1) {
     switch (c) {
     case 'h':
       display_help(argv[0]);
@@ -126,6 +130,10 @@ int main(int argc, char *argv[])
       sscanf(optarg, "%x", &bios_rom_address);
       break;
 
+    case 't':
+      tty_device = optarg;
+      break;
+
     case '?':
     default:
       display_help(argv[0]);
@@ -143,6 +151,13 @@ int main(int argc, char *argv[])
   fdc9268_init(&fdc9268, &io, &fe2010);
   m6242_init(&m6242, &io);
   xthdc_init(&xthdc, &io, &fe2010);
+
+  if (tty_device) {
+    if (i8250_init(&i8250, &io, &fe2010, &mos5720, tty_device) != 0) {
+      return EXIT_FAILURE;
+    }
+  }
+
   console_init(&io);
 
   if (mem_load_rom(&mem, bios_rom_filename, bios_rom_address) != 0) {
@@ -180,6 +195,12 @@ int main(int argc, char *argv[])
       console_execute_screen(&mem);
     }
 
+    if (tty_device) {
+      if ((cycle % 100) == 0) {
+        i8250_execute(&i8250);
+      }
+    }
+
 #ifdef CPU_RELAX
     /* Check if BIOS int16h gets called for keyboard services. */
     if (cpu.cs == (mem.m[0x5A] + (mem.m[0x5B] * 0x100)) &&
@@ -199,6 +220,12 @@ int main(int argc, char *argv[])
 #endif
     }
 #endif /* CPU_RELAX */
+
+#ifdef BREAKPOINT
+    if (cpu.ip == debugger_breakpoint) {
+      debugger_break = true;
+    }
+#endif /* BREAKPOINT */
 
     if (debugger_break) {
       console_pause();

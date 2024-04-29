@@ -392,12 +392,12 @@ static void fdc_fifo_write(void *fdc, uint16_t port, uint8_t value)
       fdc_state_set(fdc, FDC_STATE_CMD_SEEK_DS);
 
     } else if ((value & 0x1F) == FDC_CMD_READ) {
-      fdc_trace("FIFO write: Read/DS: 0x%02x\n", value);
+      fdc_trace("FIFO write: Read\n");
       fdc_msr_set(fdc, FDC_MSR_CMD_BUSY);
       fdc_state_set(fdc, FDC_STATE_CMD_READ_DS);
 
     } else if ((value & 0x1F) == FDC_CMD_WRITE) {
-      fdc_trace("FIFO write: Read/DS: 0x%02x\n", value);
+      fdc_trace("FIFO write: Write\n");
       fdc_msr_set(fdc, FDC_MSR_CMD_BUSY);
       fdc_state_set(fdc, FDC_STATE_CMD_WRITE_DS);
 

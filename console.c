@@ -294,7 +294,33 @@ static uint8_t console_xt_keyboard_scancode(int ch)
   case '}': return 0x1B;
   case '~': return 0x29;
 
-  case KEY_F(11): return 0x38; /* Left Alt */
+  case 0x00: return 0x03; /* Ctrl-@ */
+  case 0x01: return 0x1E; /* Ctrl-A */
+  case 0x02: return 0x30; /* Ctrl-B */
+  case 0x03: return 0x2E; /* Ctrl-C */
+  case 0x04: return 0x20; /* Ctrl-D */
+  case 0x05: return 0x12; /* Ctrl-E */
+  case 0x06: return 0x21; /* Ctrl-F */
+  case 0x07: return 0x22; /* Ctrl-G */
+    /* 0x08: '\b'            Ctrl-H */
+    /* 0x09: '\t'            Ctrl-I */
+    /* 0x0A: '\n'            Ctrl-J */
+  case 0x0B: return 0x25; /* Ctrl-K */
+  case 0x0C: return 0x26; /* Ctrl-L */
+    /* 0x0D: '\r'            Ctrl-M */
+  case 0x0E: return 0x31; /* Ctrl-N */
+  case 0x0F: return 0x18; /* Ctrl-O */
+  case 0x10: return 0x19; /* Ctrl-P */
+  case 0x11: return 0x10; /* Ctrl-Q */
+  case 0x12: return 0x13; /* Ctrl-R */
+  case 0x13: return 0x1F; /* Ctrl-S */
+  case 0x14: return 0x14; /* Ctrl-T */
+  case 0x15: return 0x16; /* Ctrl-U */
+  case 0x16: return 0x2F; /* Ctrl-V */
+  case 0x17: return 0x11; /* Ctrl-W */
+  case 0x18: return 0x2D; /* Ctrl-X */
+  case 0x19: return 0x15; /* Ctrl-Y */
+  case 0x1A: return 0x2C; /* Ctrl-Z */
 
   default:
     return 0;
@@ -334,6 +360,19 @@ static bool console_character_is_shifted(int ch)
   }
 
   return false;
+}
+
+
+
+static bool console_character_is_control(int ch)
+{
+  if (ch == '\r' || ch == '\n' || ch == '\t' || ch == '\b') {
+    return false;
+  } else if (ch <= 0x1A) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 
@@ -448,6 +487,7 @@ void console_init(io_t *io)
 
 void console_execute_keyboard(fe2010_t *fe2010, mos5720_t *mos5720)
 {
+  static bool alt_toggle = false;
   uint8_t scancode;
   int ch;
 #ifdef NCURSES_MOUSE_VERSION
@@ -479,13 +519,28 @@ void console_execute_keyboard(fe2010_t *fe2010, mos5720_t *mos5720)
         console_scancode_fifo_write(0xC6); /* Scroll Lock Break */
         console_scancode_fifo_write(0x9D); /* Left Ctrl Break */
         return;
+      } else if (ch == KEY_F(11)) { /* Special Alt toggle. */
+        alt_toggle = true;
+        return;
       }
+
       scancode = console_xt_keyboard_scancode(ch);
       if (console_character_is_shifted(ch)) {
         fe2010_keyboard_press(fe2010, 0x2A);          /* Left Shift Make */
         console_scancode_fifo_write(scancode);        /* Make */
         console_scancode_fifo_write(scancode + 0x80); /* Break */
         console_scancode_fifo_write(0xAA);            /* Left Shift Break */
+      } else if (console_character_is_control(ch)) {
+        fe2010_keyboard_press(fe2010, 0x1D);          /* Left Ctrl Make */
+        console_scancode_fifo_write(scancode);        /* Make */
+        console_scancode_fifo_write(scancode + 0x80); /* Break */
+        console_scancode_fifo_write(0x9D);            /* Left Ctrl Break */
+      } else if (alt_toggle) {
+        fe2010_keyboard_press(fe2010, 0x38);          /* Left Alt Make */
+        console_scancode_fifo_write(scancode);        /* Make */
+        console_scancode_fifo_write(scancode + 0x80); /* Break */
+        console_scancode_fifo_write(0xB8);            /* Left Alt Break */
+        alt_toggle = false;
       } else {
         fe2010_keyboard_press(fe2010, scancode);      /* Make */
         console_scancode_fifo_write(scancode + 0x80); /* Break */

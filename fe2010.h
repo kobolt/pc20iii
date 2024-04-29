@@ -48,6 +48,7 @@ typedef struct fe2010_s {
   uint16_t dma_reg[8];
   bool dma_flip_flop;
   uint8_t dma_page[4];
+  uint8_t dma_mode[4];
 
   uint8_t irq_mask;
   uint8_t nmi_mask;
