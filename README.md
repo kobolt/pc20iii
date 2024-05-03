@@ -26,12 +26,14 @@ Features and notes:
 * Host CPU can be relaxed by intercepting int16h and waiting for stdin.
 * By default expects BIOS ROM: cbm-pc10sd-bios-v4.38-318085-05-C72A.bin
 * Booting from floppy disk image or hard disk image should work.
-* Passthrough of COM1 to real serial TTY on host.
+* Passthrough of RS-232 on COM1 to real serial TTY on host.
 
 Information on my blog:
 * [Commodore PC 20-III Emulator](https://kobolt.github.io/article-232.html)
+* [Commodore PC 20-III Emulator Update](https://kobolt.github.io/article-234.html)
 
 YouTube:
 * [GW-BASIC](https://www.youtube.com/watch?v=PFVnMGIvJB8)
 * [Rogue](https://www.youtube.com/watch?v=a-5ppUwTYrw)
+* [RS-232 passthrough](https://www.youtube.com/watch?v=IQRhXtzYWrA)
 
