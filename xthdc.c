@@ -12,12 +12,6 @@
 #include "console.h"
 #include "panic.h"
 
-/* Hard disk C/H/S always set to 20MB Western Digital 93024-X */
-#define DISK_CYLINDERS   615
-#define DISK_HEADS       4
-#define DISK_SECTORS     17
-#define DISK_SECTOR_SIZE 512
-
 #define XTHDC_TRACE_BUFFER_SIZE 256
 #define XTHDC_TRACE_MAX 80
 
@@ -106,12 +100,7 @@ static uint8_t xthdc_read_sector_byte(xthdc_t *xthdc)
       xthdc->drive, xthdc->cylinder, xthdc->head, xthdc->sector + 1, lba);
   }
 
-  if (xthdc->disk_fh == NULL) {
-    return 0;
-  } else {
-    fseek(xthdc->disk_fh, (lba * DISK_SECTOR_SIZE) + xthdc->byte_no, SEEK_SET);
-    return fgetc(xthdc->disk_fh) & 0xFF;
-  }
+  return xthdc->data[(lba * DISK_SECTOR_SIZE) + xthdc->byte_no];
 }
 
 
@@ -133,13 +122,55 @@ static uint8_t xthdc_image_read_callback(void *callback_data)
         ((xthdc_t *)callback_data)->cylinder++;
         if (((xthdc_t *)callback_data)->cylinder >= DISK_CYLINDERS) {
           ((xthdc_t *)callback_data)->cylinder = 0;
-          panic("Overrun during XT HDC write callback!\n");
+          panic("Overrun during XT HDC read callback!\n");
         }
       }
     }
   }
 
   return byte;
+}
+
+
+
+static void xthdc_write_sector_byte(xthdc_t *xthdc, uint8_t byte)
+{
+  uint32_t lba;
+
+  lba = ((xthdc->cylinder * DISK_HEADS + xthdc->head) *
+    DISK_SECTORS) + xthdc->sector;
+
+  if (xthdc->byte_no == 0) {
+    xthdc_trace("WRITE D=%d C=%d H=%d S=%d LBA=%d\n",
+      xthdc->drive, xthdc->cylinder, xthdc->head, xthdc->sector + 1, lba);
+  }
+
+  xthdc->data[(lba * DISK_SECTOR_SIZE) + xthdc->byte_no] = byte;
+}
+
+
+
+static void xthdc_image_write_callback(void *callback_data, uint8_t byte)
+{
+  xthdc_write_sector_byte((xthdc_t *)callback_data, byte);
+  ((xthdc_t *)callback_data)->byte_no++;
+
+  if (((xthdc_t *)callback_data)->byte_no >= DISK_SECTOR_SIZE) {
+    ((xthdc_t *)callback_data)->byte_no = 0;
+    ((xthdc_t *)callback_data)->sector++;
+    if (((xthdc_t *)callback_data)->sector >= DISK_SECTORS) {
+      ((xthdc_t *)callback_data)->sector = 0;
+      ((xthdc_t *)callback_data)->head++;
+      if (((xthdc_t *)callback_data)->head >= DISK_HEADS) {
+        ((xthdc_t *)callback_data)->head = 0;
+        ((xthdc_t *)callback_data)->cylinder++;
+        if (((xthdc_t *)callback_data)->cylinder >= DISK_CYLINDERS) {
+          ((xthdc_t *)callback_data)->cylinder = 0;
+          panic("Overrun during XT HDC write callback!\n");
+        }
+      }
+    }
+  }
 }
 
 
@@ -198,6 +229,37 @@ static void xthdc_data_write(void *xthdc, uint16_t port, uint8_t value)
         xthdc_status_set(xthdc, XTHDC_STATUS_IO);
         ((xthdc_t *)xthdc)->state = XTHDC_STATE_READ_SECTOR;
       }
+      break;
+
+    case XTHDC_CMD_WRITE:
+      xthdc_update_chs(xthdc);
+      ((xthdc_t *)xthdc)->byte_no = 0;
+      if ((((xthdc_t *)xthdc)->mask >> XTHDC_MASK_DRQEN) & 1) {
+        /* DMA Transfer */
+        fe2010_dma_read(((xthdc_t *)xthdc)->fe2010, FE2010_DMA_HARD_DISK,
+          xthdc_image_write_callback, xthdc);
+        if ((((xthdc_t *)xthdc)->mask >> XTHDC_MASK_IRQEN) & 1) {
+          fe2010_irq(((xthdc_t *)xthdc)->fe2010, FE2010_IRQ_HARD_DISK);
+          xthdc_status_set(xthdc, XTHDC_STATUS_IRQ);
+        }
+        xthdc_status_set(xthdc, XTHDC_STATUS_IO);
+        ((xthdc_t *)xthdc)->state = XTHDC_STATE_STATUS;
+      } else {
+        /* PIO Transfer */
+        panic("XT HDC PIO write not implemented!\n");
+        xthdc_status_set(xthdc, XTHDC_STATUS_IO);
+        ((xthdc_t *)xthdc)->state = XTHDC_STATE_STATUS;
+      }
+      break;
+
+    case XTHDC_CMD_READY_VERIFY:
+      ((xthdc_t *)xthdc)->command_status = 0x20;
+      if ((((xthdc_t *)xthdc)->mask >> XTHDC_MASK_IRQEN) & 1) {
+        fe2010_irq(((xthdc_t *)xthdc)->fe2010, FE2010_IRQ_HARD_DISK);
+        xthdc_status_set(xthdc, XTHDC_STATUS_IRQ);
+      }
+      xthdc_status_set(xthdc, XTHDC_STATUS_IO);
+      ((xthdc_t *)xthdc)->state = XTHDC_STATE_STATUS;
       break;
 
     case XTHDC_CMD_INITIALIZE_DRIVE:
@@ -262,7 +324,7 @@ static void xthdc_data_write(void *xthdc, uint16_t port, uint8_t value)
   case XTHDC_STATE_STATUS:
   case XTHDC_STATE_IDLE:
   default:
-    panic("Unexpected data write! (0x%02x)\n", value);
+    panic("Unexpected XT HDC data write! (0x%02x)\n", value);
     break;
   }
 }
@@ -301,7 +363,7 @@ static uint8_t xthdc_data_read(void *xthdc, uint16_t port)
   case XTHDC_STATE_COMMAND:
   case XTHDC_STATE_IDLE:
   default:
-    panic("Unexpected data read!\n");
+    panic("Unexpected XT HDC data read!\n");
     break;
   }
 
@@ -416,15 +478,67 @@ void xthdc_trace_dump(FILE *fh)
 
 int xthdc_image_load(xthdc_t *xthdc, const char *filename)
 {
-  xthdc->disk_fh = fopen(filename, "rb");
-  if (xthdc->disk_fh == NULL) {
+  FILE *fh;
+  size_t n;
+  int c;
+
+  fh = fopen(filename, "rb");
+  if (fh == NULL) {
     console_exit();
     fprintf(stderr, "fopen() for '%s' failed with errno: %d\n",
       filename, errno);
     return -1;
   }
 
-  /* NOTE: File handle is never closed! */
+  n = 0;
+  while ((c = fgetc(fh)) != EOF) {
+    if (n >= DISK_SIZE) {
+      console_exit();
+      fprintf(stderr, "Too large disk image: '%s'\n", filename);
+      fclose(fh);
+      return -1;
+    }
+    xthdc->data[n] = c;
+    n++;
+  }
+  fclose(fh);
+
+  /* Fill remaining space on disk with zeroes. */
+  while (n < DISK_SIZE) {
+    xthdc->data[n] = 0;
+    n++;
+  }
+
+  xthdc->loaded = true;
+  return 0;
+}
+
+
+
+int xthdc_image_save(xthdc_t *xthdc, const char *filename)
+{
+  FILE *fh;
+  size_t n;
+
+  if (xthdc->loaded == false) {
+    console_exit();
+    fprintf(stderr, "No image loaded!\n");
+    return -2;
+  }
+
+  fh = fopen(filename, "wb");
+  if (fh == NULL) {
+    console_exit();
+    fprintf(stderr, "fopen() for '%s' failed with errno: %d\n",
+      filename, errno);
+    return -1;
+  }
+
+  for (n = 0; n < DISK_SIZE; n++) {
+    fputc(xthdc->data[n], fh);
+  }
+  fclose(fh);
+
   return 0;
 }
 

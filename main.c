@@ -18,6 +18,8 @@
 #include "m6242.h"
 #include "xthdc.h"
 #include "i8250.h"
+#include "dp8390.h"
+#include "net.h"
 #include "console.h"
 #include "debugger.h"
 #include "panic.h"
@@ -34,6 +36,8 @@ static fdc9268_t fdc9268;
 static m6242_t m6242;
 static xthdc_t xthdc;
 static i8250_t i8250;
+static dp8390_t dp8390;
+static net_t net;
 
 static bool debugger_break = false;
 static char panic_msg[80];
@@ -150,7 +154,8 @@ int main(int argc, char *argv[])
   mos5720_init(&mos5720, &io, &fe2010);
   fdc9268_init(&fdc9268, &io, &fe2010);
   m6242_init(&m6242, &io);
-  xthdc_init(&xthdc, &io, &fe2010);
+  net_init(&net);
+  dp8390_init(&dp8390, &io, &fe2010, &net);
 
   if (tty_device) {
     if (i8250_init(&i8250, &io, &fe2010, &mos5720, tty_device) != 0) {
@@ -179,6 +184,7 @@ int main(int argc, char *argv[])
   }
 
   if (hard_disk_image) {
+    xthdc_init(&xthdc, &io, &fe2010);
     if (xthdc_image_load(&xthdc, hard_disk_image) != 0) {
       return EXIT_FAILURE;
     }
@@ -193,6 +199,8 @@ int main(int argc, char *argv[])
     if ((cycle % 10000) == 0) {
       console_execute_keyboard(&fe2010, &mos5720);
       console_execute_screen(&mem);
+      net_execute(&net);
+      dp8390_execute(&dp8390);
     }
 
     if (tty_device) {
@@ -222,8 +230,10 @@ int main(int argc, char *argv[])
 #endif /* CPU_RELAX */
 
 #ifdef BREAKPOINT
-    if (cpu.ip == debugger_breakpoint) {
-      debugger_break = true;
+    if (cpu.ip == debugger_breakpoint_ip) {
+      if (cpu.cs == debugger_breakpoint_cs || debugger_breakpoint_cs == -1) {
+        debugger_break = true;
+      }
     }
 #endif /* BREAKPOINT */
 
@@ -233,7 +243,7 @@ int main(int argc, char *argv[])
         fprintf(stdout, "%s", panic_msg);
         panic_msg[0] = '\0';
       }
-      debugger_break = debugger(&cpu, &mem, &fe2010, &fdc9268);
+      debugger_break = debugger(&cpu, &mem, &fe2010, &fdc9268, &xthdc);
       if (! debugger_break) {
         console_resume();
       }

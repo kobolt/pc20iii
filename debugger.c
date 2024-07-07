@@ -12,11 +12,14 @@
 #include "fdc9268.h"
 #include "xthdc.h"
 #include "i8250.h"
+#include "dp8390.h"
+#include "net.h"
 
 #define DEBUGGER_ARGS 3
 
 #ifdef BREAKPOINT
-int32_t debugger_breakpoint = -1;
+int32_t debugger_breakpoint_cs = -1;
+int32_t debugger_breakpoint_ip = -1;
 #endif
 
 
@@ -38,15 +41,19 @@ static void debugger_help(void)
   fprintf(stdout, "  f              - FDC9268 Trace\n");
   fprintf(stdout, "  x              - XT HDC Trace\n");
   fprintf(stdout, "  e              - COM1/8250 Trace\n");
+  fprintf(stdout, "  p              - DP8390 Trace\n");
+  fprintf(stdout, "  n              - Network Trace\n");
   fprintf(stdout, "  a <filename>   - Load Floppy A:\n");
   fprintf(stdout, "  b <filename>   - Load Floppy B:\n");
   fprintf(stdout, "  A <filename>   - Save Floppy A:\n");
   fprintf(stdout, "  B <filename>   - Save Floppy B:\n");
+  fprintf(stdout, "  W <filename>   - Save Hard Disk Image\n");
 }
 
 
 
-bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010, fdc9268_t *fdc9268)
+bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
+  fdc9268_t *fdc9268, xthdc_t *xthdc)
 {
   char input[128];
   char *argv[DEBUGGER_ARGS];
@@ -99,18 +106,30 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010, fdc9268_t *fdc9268)
 #ifdef BREAKPOINT
     } else if (strncmp(argv[0], "k", 1) == 0) {
       if (argc >= 2) {
-        sscanf(argv[1], "%4x", &value1);
-        debugger_breakpoint = (value1 & 0xFFFF);
-        fprintf(stdout, "Breakpoint at 0x%04x set.\n",
-          debugger_breakpoint);
+        if (sscanf(argv[1], "%4x:%4x", &value1, &value2) == 2) {
+          debugger_breakpoint_cs = (value1 & 0xFFFF);
+          debugger_breakpoint_ip = (value2 & 0xFFFF);
+          fprintf(stdout, "Breakpoint at %04X:%04X set.\n",
+            debugger_breakpoint_cs, debugger_breakpoint_ip);
+        } else {
+          debugger_breakpoint_ip = (value1 & 0xFFFF);
+          fprintf(stdout, "Breakpoint at *:%04X set.\n",
+            debugger_breakpoint_ip);
+        }
       } else {
-        if (debugger_breakpoint < 0) {
+        if (debugger_breakpoint_ip < 0) {
           fprintf(stdout, "Missing argument!\n");
         } else {
-          fprintf(stdout, "Breakpoint at 0x%04x removed.\n",
-            debugger_breakpoint);
+          if (debugger_breakpoint_cs < 0) {
+            fprintf(stdout, "Breakpoint at *:%04X removed.\n",
+              debugger_breakpoint_ip);
+          } else {
+            fprintf(stdout, "Breakpoint at %04X:%04X removed.\n",
+              debugger_breakpoint_cs, debugger_breakpoint_ip);
+          }
         }
-        debugger_breakpoint = -1;
+        debugger_breakpoint_ip = -1;
+        debugger_breakpoint_cs = -1;
       }
 #endif /* BREAKPOINT */
 
@@ -152,6 +171,12 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010, fdc9268_t *fdc9268)
     } else if (strncmp(argv[0], "e", 1) == 0) {
       i8250_trace_dump(stdout);
 
+    } else if (strncmp(argv[0], "p", 1) == 0) {
+      dp8390_trace_dump(stdout);
+
+    } else if (strncmp(argv[0], "n", 1) == 0) {
+      net_trace_dump(stdout);
+
     } else if (strncmp(argv[0], "a", 1) == 0) {
       if (argc >= 2) {
         fdc9268_image_load(fdc9268, 0, argv[1], 0);
@@ -176,6 +201,13 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010, fdc9268_t *fdc9268)
     } else if (strncmp(argv[0], "B", 1) == 0) {
       if (argc >= 2) {
         fdc9268_image_save(fdc9268, 1, argv[1]);
+      } else {
+        fprintf(stdout, "Missing argument!\n");
+      }
+
+    } else if (strncmp(argv[0], "W", 1) == 0) {
+      if (argc >= 2) {
+        xthdc_image_save(xthdc, argv[1]);
       } else {
         fprintf(stdout, "Missing argument!\n");
       }

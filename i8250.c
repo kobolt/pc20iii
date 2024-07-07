@@ -12,6 +12,7 @@
 #include <poll.h>
 
 #include "io.h"
+#include "fe2010.h"
 #include "mos5720.h"
 #include "panic.h"
 

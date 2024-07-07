@@ -347,12 +347,14 @@ void fe2010_init(fe2010_t *fe2010, io_t *io, i8088_t *cpu, mem_t *mem)
   fe2010->mem = mem;
 
   /* Set initial DIP switches:
-   * - No 8087 installed.
-   * - 640K RAM.
-   * - CGA 80 columns.
-   * - 2 floppy drives.
+   * - Floppy drives present--+
+   * - No 8087 installed-----+|
+   * - 640K RAM------------+ ||
+   * - CGA 80 columns----+ | ||
+   * - 2 floppy drives-+ | | ||
+   *                   | | | ||
    */
-  fe2010->switches = 0b01011100;
+  fe2010->switches = 0b01011101;
 
   io->read[FE2010_KEYBOARD_DATA_REGISTER].func = fe2010_scancode_read;
   io->read[FE2010_KEYBOARD_DATA_REGISTER].cookie = fe2010;

@@ -19,7 +19,7 @@ Features and notes:
 * Standard Microsystems FDC 9268 floppy controller mostly emulated.
 * Basic read and write to floppies up to 2.88M.
 * Autodetect of sectors-per-track from floppy image boot sector.
-* Western Digital 93024-X 20 MB hard drive emulation, but read-only.
+* Western Digital 93024-X 20 MB hard drive emulation.
 * Hard disk image expects layout matching C/H/S values of 615/4/17.
 * Ctrl+C in the terminal breaks into a debugger for dumping data.
 * CPU trace enabled/disabled by compile time define flag.
@@ -27,6 +27,9 @@ Features and notes:
 * By default expects BIOS ROM: cbm-pc10sd-bios-v4.38-318085-05-C72A.bin
 * Booting from floppy disk image or hard disk image should work.
 * Passthrough of RS-232 on COM1 to real serial TTY on host.
+* NE2000 compatible Ethernet card (DP8390) emulated at port 0x300 and IRQ 3.
+* Network emulated with internal stack supporting TCP and UDP connections.
+* IP addresses hardcoded to 10.0.0.1 for host/gateway and 10.0.0.2 for client.
 
 Information on my blog:
 * [Commodore PC 20-III Emulator](https://kobolt.github.io/article-232.html)
