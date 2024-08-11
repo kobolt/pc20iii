@@ -30,6 +30,8 @@ Features and notes:
 * NE2000 compatible Ethernet card (DP8390) emulated at port 0x300 and IRQ 3.
 * Network emulated with internal stack supporting TCP and UDP connections.
 * IP addresses hardcoded to 10.0.0.1 for host/gateway and 10.0.0.2 for client.
+* MAC address 11:11:11:11:11:11 for host and 22:22:22:22:22:22 for client.
+* Integrated EtherDFS server for sharing files with the host.
 
 Information on my blog:
 * [Commodore PC 20-III Emulator](https://kobolt.github.io/article-232.html)

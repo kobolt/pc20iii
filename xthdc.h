@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <limits.h>
 #include "io.h"
 #include "fe2010.h"
 
@@ -46,6 +47,7 @@ typedef struct xthdc_s {
   uint16_t byte_no;
 
   bool loaded;
+  char loaded_filename[PATH_MAX];
   uint8_t data[DISK_SIZE];
 
   fe2010_t* fe2010;

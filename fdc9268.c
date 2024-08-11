@@ -629,6 +629,8 @@ int fdc9268_image_load(fdc9268_t *fdc, int ds, const char *filename,
   size_t n;
   int c;
 
+  fdc->floppy[ds].loaded = false;
+
   fh = fopen(filename, "rb");
   if (fh == NULL) {
     console_exit();
@@ -668,6 +670,7 @@ int fdc9268_image_load(fdc9268_t *fdc, int ds, const char *filename,
     }
   }
 
+  strncpy(fdc->floppy[ds].loaded_filename, filename, PATH_MAX);
   fdc->floppy[ds].loaded = true;
   return 0;
 }
@@ -685,7 +688,11 @@ int fdc9268_image_save(fdc9268_t *fdc, int ds, const char *filename)
     return -2;
   }
 
-  fh = fopen(filename, "wb");
+  if (filename == NULL) {
+    fh = fopen(fdc->floppy[ds].loaded_filename, "wb");
+  } else {
+    fh = fopen(filename, "wb");
+  }
   if (fh == NULL) {
     console_exit();
     fprintf(stderr, "fopen() for '%s' failed with errno: %d\n",
@@ -698,6 +705,9 @@ int fdc9268_image_save(fdc9268_t *fdc, int ds, const char *filename)
   }
   fclose(fh);
 
+  if (filename != NULL) {
+    strncpy(fdc->floppy[ds].loaded_filename, filename, PATH_MAX);
+  }
   return 0;
 }
 

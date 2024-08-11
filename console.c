@@ -573,7 +573,11 @@ void console_execute_screen(mem_t *mem)
     fg    =  attrib       & 0x7;
     bold  = (attrib >> 3) & 1;
     bg    = (attrib >> 4) & 0x7;
-    blink = (attrib >> 7) & 1;
+    if ((console_cga_mode >> 5) & 1) { /* Blink enabled? */
+      blink = (attrib >> 7) & 1;
+    } else {
+      blink = false;
+    }
 
     if (bold) {
       attron(A_BOLD);

@@ -482,6 +482,8 @@ int xthdc_image_load(xthdc_t *xthdc, const char *filename)
   size_t n;
   int c;
 
+  xthdc->loaded = false;
+
   fh = fopen(filename, "rb");
   if (fh == NULL) {
     console_exit();
@@ -509,6 +511,7 @@ int xthdc_image_load(xthdc_t *xthdc, const char *filename)
     n++;
   }
 
+  strncpy(xthdc->loaded_filename, filename, PATH_MAX);
   xthdc->loaded = true;
   return 0;
 }
@@ -526,7 +529,11 @@ int xthdc_image_save(xthdc_t *xthdc, const char *filename)
     return -2;
   }
 
-  fh = fopen(filename, "wb");
+  if (filename == NULL) {
+    fh = fopen(xthdc->loaded_filename, "wb");
+  } else {
+    fh = fopen(filename, "wb");
+  }
   if (fh == NULL) {
     console_exit();
     fprintf(stderr, "fopen() for '%s' failed with errno: %d\n",
@@ -539,6 +546,9 @@ int xthdc_image_save(xthdc_t *xthdc, const char *filename)
   }
   fclose(fh);
 
+  if (filename != NULL) {
+    strncpy(xthdc->loaded_filename, filename, PATH_MAX);
+  }
   return 0;
 }
 

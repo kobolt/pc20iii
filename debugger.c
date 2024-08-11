@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #include "i8088.h"
 #include "i8088_trace.h"
@@ -14,6 +16,7 @@
 #include "i8250.h"
 #include "dp8390.h"
 #include "net.h"
+#include "edfs.h"
 
 #define DEBUGGER_ARGS 3
 
@@ -43,11 +46,52 @@ static void debugger_help(void)
   fprintf(stdout, "  e              - COM1/8250 Trace\n");
   fprintf(stdout, "  p              - DP8390 Trace\n");
   fprintf(stdout, "  n              - Network Trace\n");
+  fprintf(stdout, "  y              - EtherDFS Trace\n");
   fprintf(stdout, "  a <filename>   - Load Floppy A:\n");
   fprintf(stdout, "  b <filename>   - Load Floppy B:\n");
-  fprintf(stdout, "  A <filename>   - Save Floppy A:\n");
-  fprintf(stdout, "  B <filename>   - Save Floppy B:\n");
-  fprintf(stdout, "  W <filename>   - Save Hard Disk Image\n");
+  fprintf(stdout, "  A [filename]   - Save Floppy A:\n");
+  fprintf(stdout, "  B [filename]   - Save Floppy B:\n");
+  fprintf(stdout, "  W [filename]   - Save Hard Disk Image\n");
+}
+
+
+
+static bool debugger_overwrite(FILE *out, FILE *in, const char *filename)
+{
+  struct stat st;
+  char answer[2];
+
+  if (stat(filename, &st) == 0) {
+    if (S_ISREG(st.st_mode)) {
+      while (1) {
+        fprintf(out, "\rOverwrite '%s' (y/n) ? ", filename);
+        if (fgets(answer, sizeof(answer), in) == NULL) {
+          if (feof(stdin)) {
+            return false;
+          }
+        } else {
+          if (answer[0] == 'y') {
+            return true;
+          } else if (answer[0] == 'n') {
+            return false;
+          }
+        }
+      }
+
+    } else {
+      fprintf(out, "Filename is not a file!\n");
+      return false;
+    }
+
+  } else {
+    if (errno == ENOENT) {
+      return true; /* File not found, OK to write. */
+
+    } else {
+      fprintf(out, "stat() failed with errno: %d\n", errno);
+      return false;
+    }
+  }
 }
 
 
@@ -55,7 +99,7 @@ static void debugger_help(void)
 bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
   fdc9268_t *fdc9268, xthdc_t *xthdc)
 {
-  char input[128];
+  char input[512];
   char *argv[DEBUGGER_ARGS];
   int argc;
   int value1;
@@ -63,7 +107,7 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
 
   fprintf(stdout, "\n");
   while (1) {
-    fprintf(stdout, "%04X:%04X> ", cpu->cs, cpu->ip);
+    fprintf(stdout, "\r%04X:%04X> ", cpu->cs, cpu->ip);
 
     if (fgets(input, sizeof(input), stdin) == NULL) {
       if (feof(stdin)) {
@@ -177,6 +221,9 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
     } else if (strncmp(argv[0], "n", 1) == 0) {
       net_trace_dump(stdout);
 
+    } else if (strncmp(argv[0], "y", 1) == 0) {
+      edfs_trace_dump(stdout);
+
     } else if (strncmp(argv[0], "a", 1) == 0) {
       if (argc >= 2) {
         fdc9268_image_load(fdc9268, 0, argv[1], 0);
@@ -193,23 +240,37 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
 
     } else if (strncmp(argv[0], "A", 1) == 0) {
       if (argc >= 2) {
-        fdc9268_image_save(fdc9268, 0, argv[1]);
+        if (debugger_overwrite(stdout, stdin, argv[1])) {
+          fdc9268_image_save(fdc9268, 0, argv[1]);
+        }
       } else {
-        fprintf(stdout, "Missing argument!\n");
+        if (debugger_overwrite(stdout, stdin,
+          fdc9268->floppy[0].loaded_filename)) {
+          fdc9268_image_save(fdc9268, 0, NULL);
+        }
       }
 
     } else if (strncmp(argv[0], "B", 1) == 0) {
       if (argc >= 2) {
-        fdc9268_image_save(fdc9268, 1, argv[1]);
+        if (debugger_overwrite(stdout, stdin, argv[1])) {
+          fdc9268_image_save(fdc9268, 1, argv[1]);
+        }
       } else {
-        fprintf(stdout, "Missing argument!\n");
+        if (debugger_overwrite(stdout, stdin,
+          fdc9268->floppy[1].loaded_filename)) {
+          fdc9268_image_save(fdc9268, 1, NULL);
+        }
       }
 
     } else if (strncmp(argv[0], "W", 1) == 0) {
       if (argc >= 2) {
-        xthdc_image_save(xthdc, argv[1]);
+        if (debugger_overwrite(stdout, stdin, argv[1])) {
+          xthdc_image_save(xthdc, argv[1]);
+        }
       } else {
-        fprintf(stdout, "Missing argument!\n");
+        if (debugger_overwrite(stdout, stdin, xthdc->loaded_filename)) {
+          xthdc_image_save(xthdc, NULL);
+        }
       }
     }
   }

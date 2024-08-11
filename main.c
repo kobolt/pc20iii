@@ -20,6 +20,7 @@
 #include "i8250.h"
 #include "dp8390.h"
 #include "net.h"
+#include "edfs.h"
 #include "console.h"
 #include "debugger.h"
 #include "panic.h"
@@ -73,6 +74,7 @@ static void display_help(const char *progname)
   fprintf(stdout, "Usage: %s <options>\n", progname);
   fprintf(stdout, "Options:\n"
     "  -h        Display this help.\n"
+    "  -d        Break into debugger on start.\n"
     "  -a FILE   Load floppy image FILE into floppy drive A:\n"
     "  -b FILE   Load floppy image FILE into floppy drive B:\n"
     "  -w FILE   Load hard disk image FILE for C:\n"
@@ -80,6 +82,7 @@ static void display_help(const char *progname)
     "  -r FILE   Use FILE for BIOS ROM instead of the default.\n"
     "  -x ADDR   Load BIOS ROM at (hex) ADDR instead of the default.\n"
     "  -t TTY    Passthrough COM1 to TTY device.\n"
+    "  -e DIR    Serve EtherDFS requests from DIR root.\n"
     "\n");
   fprintf(stdout,
     "Default BIOS ROM '%s' @ 0x%05x\n", BIOS_ROM_FILENAME, BIOS_ROM_ADDRESS);
@@ -99,16 +102,21 @@ int main(int argc, char *argv[])
   char *floppy_b_image = NULL;
   char *hard_disk_image = NULL;
   char *tty_device = NULL;
+  char *edfs_root = NULL;
   int floppy_image_spt = 0;
 
   panic_msg[0] = '\0';
   signal(SIGINT, sig_handler);
 
-  while ((c = getopt(argc, argv, "ha:b:w:s:r:x:t:")) != -1) {
+  while ((c = getopt(argc, argv, "hda:b:w:s:r:x:t:e:")) != -1) {
     switch (c) {
     case 'h':
       display_help(argv[0]);
       return EXIT_SUCCESS;
+
+    case 'd':
+      debugger_break = true;
+      break;
 
     case 'a':
       floppy_a_image = optarg;
@@ -138,6 +146,10 @@ int main(int argc, char *argv[])
       tty_device = optarg;
       break;
 
+    case 'e':
+      edfs_root = optarg;
+      break;
+
     case '?':
     default:
       display_help(argv[0]);
@@ -161,6 +173,10 @@ int main(int argc, char *argv[])
     if (i8250_init(&i8250, &io, &fe2010, &mos5720, tty_device) != 0) {
       return EXIT_FAILURE;
     }
+  }
+
+  if (edfs_root) {
+    edfs_init(edfs_root);
   }
 
   console_init(&io);

@@ -1,9 +1,9 @@
+#include "dp8390.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 
-#include "dp8390.h"
 #include "net.h"
 #include "fe2010.h"
 #include "io.h"

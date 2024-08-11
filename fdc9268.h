@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <limits.h>
 #include "io.h"
 #include "fe2010.h"
 
@@ -56,6 +57,7 @@ typedef enum {
 
 typedef struct floppy_s {
   bool loaded;
+  char loaded_filename[PATH_MAX];
   uint8_t data[FLOPPY_SIZE_MAX];
   uint8_t spt; /* Sectors Per Track */
   size_t size; /* Actual size used. */

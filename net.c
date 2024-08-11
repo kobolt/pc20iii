@@ -1,3 +1,4 @@
+#include "net.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -11,7 +12,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
-#include "net.h"
+#include "edfs.h"
 #include "panic.h"
 
 #define NET_TRACE_BUFFER_SIZE 256
@@ -930,6 +931,9 @@ void net_tx_frame(net_t *net, uint8_t tx_frame[], uint16_t tx_len)
     break;
   case 0x0800: /* IPv4 */
     net_handle_ipv4(net, tx_frame, tx_len);
+    break;
+  case 0xEDF5: /* EtherDFS */
+    edfs_handle_packet(net, tx_frame, tx_len);
     break;
   default:
     break;
