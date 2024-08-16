@@ -37,10 +37,12 @@ Information on my blog:
 * [Commodore PC 20-III Emulator](https://kobolt.github.io/article-232.html)
 * [Commodore PC 20-III Emulator Update](https://kobolt.github.io/article-234.html)
 * [Commodore PC 20-III Emulator Network Support](https://kobolt.github.io/article-237.html)
+* [Commodore PC 20-III Emulator EtherDFS Integration](https://kobolt.github.io/article-239.html)
 
 YouTube:
 * [GW-BASIC](https://www.youtube.com/watch?v=PFVnMGIvJB8)
 * [Rogue](https://www.youtube.com/watch?v=a-5ppUwTYrw)
 * [RS-232 passthrough](https://www.youtube.com/watch?v=IQRhXtzYWrA)
 * [NE2000 Ethernet](https://www.youtube.com/watch?v=1M6w4Fwq4uA)
+* [EtherDFS File Sharing](https://www.youtube.com/watch?v=aXr2Xm-WAcA)
 
