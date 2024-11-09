@@ -36,6 +36,7 @@ typedef struct pit_s {
   };
 
   bool flip_flop;
+  bool timer_hack;
 } pit_t;
 
 typedef struct fe2010_s {

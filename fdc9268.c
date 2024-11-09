@@ -713,3 +713,11 @@ int fdc9268_image_save(fdc9268_t *fdc, int ds, const char *filename)
 
 
 
+void fdc9268_image_eject(fdc9268_t *fdc, int ds)
+{
+  fdc->floppy[ds].loaded = false;
+  fdc->floppy[ds].loaded_filename[0] = '\0';
+}
+
+
+

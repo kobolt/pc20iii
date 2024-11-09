@@ -8,6 +8,9 @@
 
 #include "console.h"
 #include "panic.h"
+#ifdef MEM_BREAKPOINT
+#include "debugger.h"
+#endif /* MEM_BREAKPOINT */
 
 
 
@@ -51,6 +54,11 @@ void mem_write(mem_t *mem, uint32_t address, uint8_t value)
   } else {
     if (mem->readonly[address / MEM_SECTION] == false) {
       mem->m[address] = value;
+#ifdef MEM_BREAKPOINT
+      if ((int32_t)address == debugger_breakpoint_mem) {
+        panic("Memory write breakpoint: 0x%05x < 0x%02x\n", address, value);
+      }
+#endif /* MEM_BREAKPOINT */
     }
   }
 }

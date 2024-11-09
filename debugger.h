@@ -13,6 +13,7 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
 #ifdef BREAKPOINT
 extern int32_t debugger_breakpoint_cs;
 extern int32_t debugger_breakpoint_ip;
+extern int32_t debugger_breakpoint_mem;
 #endif /* BREAKPOINT */
 
 #endif /* _DEBUGGER_H */

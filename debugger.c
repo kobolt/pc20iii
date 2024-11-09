@@ -23,7 +23,10 @@
 #ifdef BREAKPOINT
 int32_t debugger_breakpoint_cs = -1;
 int32_t debugger_breakpoint_ip = -1;
-#endif
+#endif /* BREAKPOINT */
+#ifdef MEM_BREAKPOINT
+int32_t debugger_breakpoint_mem = -1;
+#endif /* MEM_BREAKPOINT */
 
 
 
@@ -35,11 +38,15 @@ static void debugger_help(void)
   fprintf(stdout, "  c              - Continue\n");
   fprintf(stdout, "  s              - Step\n");
 #ifdef BREAKPOINT
-  fprintf(stdout, "  k <addr>       - Breakpoint\n");
+  fprintf(stdout, "  k <addr>       - CPU Breakpoint\n");
 #endif /* BREAKPOINT */
+#ifdef MEM_BREAKPOINT
+  fprintf(stdout, "  K <addr>       - Memory Write Breakpoint\n");
+#endif /* MEM_BREAKPOINT */
   fprintf(stdout, "  t [extended]   - CPU Trace\n");
   fprintf(stdout, "  i              - Interrupt Trace\n");
   fprintf(stdout, "  d <addr> [end] - Dump Memory\n");
+  fprintf(stdout, "  D <filename>   - Dump All Memory to File\n");
   fprintf(stdout, "  g              - FE2010 Status\n");
   fprintf(stdout, "  f              - FDC9268 Trace\n");
   fprintf(stdout, "  x              - XT HDC Trace\n");
@@ -47,8 +54,8 @@ static void debugger_help(void)
   fprintf(stdout, "  p              - DP8390 Trace\n");
   fprintf(stdout, "  n              - Network Trace\n");
   fprintf(stdout, "  y              - EtherDFS Trace\n");
-  fprintf(stdout, "  a <filename>   - Load Floppy A:\n");
-  fprintf(stdout, "  b <filename>   - Load Floppy B:\n");
+  fprintf(stdout, "  a [filename]   - Load/Eject Floppy A:\n");
+  fprintf(stdout, "  b [filename]   - Load/Eject Floppy B:\n");
   fprintf(stdout, "  A [filename]   - Save Floppy A:\n");
   fprintf(stdout, "  B [filename]   - Save Floppy B:\n");
   fprintf(stdout, "  W [filename]   - Save Hard Disk Image\n");
@@ -104,6 +111,7 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
   int argc;
   int value1;
   int value2;
+  FILE *fh;
 
   fprintf(stdout, "\n");
   while (1) {
@@ -155,10 +163,12 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
           debugger_breakpoint_ip = (value2 & 0xFFFF);
           fprintf(stdout, "Breakpoint at %04X:%04X set.\n",
             debugger_breakpoint_cs, debugger_breakpoint_ip);
-        } else {
+        } else if (sscanf(argv[1], "%4x", &value1) == 1) {
           debugger_breakpoint_ip = (value1 & 0xFFFF);
           fprintf(stdout, "Breakpoint at *:%04X set.\n",
             debugger_breakpoint_ip);
+        } else {
+          fprintf(stdout, "Invalid argument!\n");
         }
       } else {
         if (debugger_breakpoint_ip < 0) {
@@ -176,6 +186,28 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
         debugger_breakpoint_cs = -1;
       }
 #endif /* BREAKPOINT */
+
+#ifdef MEM_BREAKPOINT
+    } else if (strncmp(argv[0], "K", 1) == 0) {
+
+      if (argc >= 2) {
+        if (sscanf(argv[1], "%x", &value1) == 1) {
+          debugger_breakpoint_mem = (value1 & 0xFFFFF);
+          fprintf(stdout, "Memory write breakpoint at %05X set.\n",
+            debugger_breakpoint_mem);
+        } else {
+          fprintf(stdout, "Invalid argument!\n");
+        }
+      } else {
+        if (debugger_breakpoint_mem < 0) {
+          fprintf(stdout, "Missing argument!\n");
+        } else {
+          fprintf(stdout, "Memory write breakpoint at %05X removed.\n",
+            debugger_breakpoint_mem);
+        }
+        debugger_breakpoint_mem = -1;
+      }
+#endif /* MEM_BREAKPOINT */
 
     } else if (strncmp(argv[0], "t", 1) == 0) {
       if (argc >= 2 && strlen(argv[1]) > 0) {
@@ -203,6 +235,19 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
         fprintf(stdout, "Missing argument!\n");
       }
 
+    } else if (strncmp(argv[0], "D", 1) == 0) {
+      if (argc >= 2) {
+        if (debugger_overwrite(stdout, stdin, argv[1])) {
+          fh = fopen(argv[1], "wb");
+          if (fh != NULL) {
+            mem_dump(fh, mem, 0, 0xFFFFF);
+          }
+          fclose(fh);
+        }
+      } else {
+        fprintf(stdout, "Missing argument!\n");
+      }
+
     } else if (strncmp(argv[0], "g", 1) == 0) {
       fe2010_dump(stdout, fe2010);
 
@@ -226,52 +271,73 @@ bool debugger(i8088_t *cpu, mem_t *mem, fe2010_t *fe2010,
 
     } else if (strncmp(argv[0], "a", 1) == 0) {
       if (argc >= 2) {
-        fdc9268_image_load(fdc9268, 0, argv[1], 0);
+        if (fdc9268_image_load(fdc9268, 0, argv[1], 0) == 0) {
+          fprintf(stdout, "Floppy image A: loaded.\n");
+        }
       } else {
-        fprintf(stdout, "Missing argument!\n");
+        fdc9268_image_eject(fdc9268, 0);
+        fprintf(stdout, "Floppy image A: ejected.\n");
       }
 
     } else if (strncmp(argv[0], "b", 1) == 0) {
       if (argc >= 2) {
-        fdc9268_image_load(fdc9268, 1, argv[1], 0);
+        if (fdc9268_image_load(fdc9268, 1, argv[1], 0) == 0) {
+          fprintf(stdout, "Floppy image B: loaded.\n");
+        }
       } else {
-        fprintf(stdout, "Missing argument!\n");
+        fdc9268_image_eject(fdc9268, 1);
+        fprintf(stdout, "Floppy image B: ejected.\n");
       }
 
     } else if (strncmp(argv[0], "A", 1) == 0) {
       if (argc >= 2) {
         if (debugger_overwrite(stdout, stdin, argv[1])) {
-          fdc9268_image_save(fdc9268, 0, argv[1]);
+          if (fdc9268_image_save(fdc9268, 0, argv[1]) == 0) {
+            fprintf(stdout, "Floppy image A: saved.\n");
+          }
         }
       } else {
         if (debugger_overwrite(stdout, stdin,
           fdc9268->floppy[0].loaded_filename)) {
-          fdc9268_image_save(fdc9268, 0, NULL);
+          if (fdc9268_image_save(fdc9268, 0, NULL) == 0) {
+            fprintf(stdout, "Floppy image A: saved.\n");
+          }
         }
       }
 
     } else if (strncmp(argv[0], "B", 1) == 0) {
       if (argc >= 2) {
         if (debugger_overwrite(stdout, stdin, argv[1])) {
-          fdc9268_image_save(fdc9268, 1, argv[1]);
+          if (fdc9268_image_save(fdc9268, 1, argv[1]) == 0) {
+            fprintf(stdout, "Floppy image B: saved.\n");
+          }
         }
       } else {
         if (debugger_overwrite(stdout, stdin,
           fdc9268->floppy[1].loaded_filename)) {
-          fdc9268_image_save(fdc9268, 1, NULL);
+          if (fdc9268_image_save(fdc9268, 1, NULL) == 0) {
+            fprintf(stdout, "Floppy image B: saved.\n");
+          }
         }
       }
 
     } else if (strncmp(argv[0], "W", 1) == 0) {
       if (argc >= 2) {
         if (debugger_overwrite(stdout, stdin, argv[1])) {
-          xthdc_image_save(xthdc, argv[1]);
+          if (xthdc_image_save(xthdc, argv[1]) == 0) {
+            fprintf(stdout, "Hard disk image saved.\n");
+          }
         }
       } else {
         if (debugger_overwrite(stdout, stdin, xthdc->loaded_filename)) {
-          xthdc_image_save(xthdc, NULL);
+          if (xthdc_image_save(xthdc, NULL) == 0) {
+            fprintf(stdout, "Hard disk image saved.\n");
+          }
         }
       }
+    } else {
+      fprintf(stdout, "Unknown command: '%c' (use 'h' for help.)\n",
+        argv[0][0]);
     }
   }
 } 

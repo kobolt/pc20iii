@@ -1742,10 +1742,11 @@ static void i8088_movsb(i8088_t *cpu, mem_t *mem)
 
 static void i8088_movsw(i8088_t *cpu, mem_t *mem)
 {
-  mem_write_by_segment(mem, cpu->es, cpu->di,
-    eaddr_read_8(cpu, mem, cpu->ds, cpu->si, NULL));
-  mem_write_by_segment(mem, cpu->es, cpu->di+1,
-    eaddr_read_8(cpu, mem, cpu->ds, cpu->si+1, NULL));
+  uint16_t data;
+  data  = eaddr_read_8(cpu, mem, cpu->ds, cpu->si, NULL);
+  data += eaddr_read_8(cpu, mem, cpu->ds, cpu->si+1, NULL) * 0x100;
+  mem_write_by_segment(mem, cpu->es, cpu->di,   data % 0x100);
+  mem_write_by_segment(mem, cpu->es, cpu->di+1, data / 0x100);
   if (cpu->d) {
     cpu->di -= 2;
     cpu->si -= 2;

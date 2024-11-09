@@ -112,6 +112,12 @@ static void fe2010_conf_write(void *fe2010, uint16_t port, uint8_t value)
 {
   (void)port;
   ((fe2010_t *)fe2010)->conf = value;
+
+  /* Very early during BIOS POST the configuration register is set to 0x01,
+     use this to disable the keyboard and avoid problematic IRQs. */
+  if (value == 0x01) {
+    ((fe2010_t *)fe2010)->ctrl &= ~0x40; /* Disable keyboard clock. */
+  }
 }
 
 
@@ -242,7 +248,13 @@ static uint8_t i8253_pit_counter_read(void *fe2010, uint16_t port)
       return ((fe2010_t *)fe2010)->pit[pit_select].latch_msb;
     } else {
       ((fe2010_t *)fe2010)->pit[pit_select].flip_flop = true;
-      return ((fe2010_t *)fe2010)->pit[pit_select].latch_lsb;
+      if (((fe2010_t *)fe2010)->pit[pit_select].timer_hack) {
+        ((fe2010_t *)fe2010)->pit[pit_select].timer_hack = false;
+        /* Since CPU is not synchronized with the PIT return this value. */
+        return 0xFF;
+      } else {
+        return ((fe2010_t *)fe2010)->pit[pit_select].latch_lsb;
+      }
     }
 
   case 0b01: /* Read LSB only. */
@@ -296,6 +308,10 @@ static void i8253_pit_counter_write(void *fe2010, uint16_t port, uint8_t value)
     break;
 
   case 0b01: /* Load LSB only. */
+    if (((fe2010_t *)fe2010)->pit[pit_select].mode == PIT_MODE_SWRG) {
+      /* Most likely the BIOS is doing the Timer 2 test here, activate hack! */
+      ((fe2010_t *)fe2010)->pit[pit_select].timer_hack = true;
+    }
     ((fe2010_t *)fe2010)->pit[pit_select].counter_lsb = value;
     ((fe2010_t *)fe2010)->pit[pit_select].counter_msb = 0;
     break;
@@ -334,6 +350,7 @@ static void i8253_pit_control_write(void *fe2010, uint16_t port, uint8_t value)
   }
 
   ((fe2010_t *)fe2010)->pit[pit_select].control = (value & 0x3F);
+  ((fe2010_t *)fe2010)->pit[pit_select].flip_flop = false;
 
   if (((fe2010_t *)fe2010)->pit[pit_select].rl == 0) { /* Update latch. */
     ((fe2010_t *)fe2010)->pit[pit_select].latch =
@@ -485,7 +502,7 @@ void fe2010_execute(fe2010_t *fe2010)
 
 void fe2010_irq(fe2010_t *fe2010, int irq_no)
 {
-  if (fe2010->irq_mask >> irq_no) {
+  if (((fe2010->irq_mask >> irq_no) & 1) == 0) {
     fe2010->irq_pending[irq_no] = i8088_irq(fe2010->cpu, fe2010->mem, irq_no);
   }
 }
