@@ -45,4 +45,5 @@ YouTube:
 * [RS-232 passthrough](https://www.youtube.com/watch?v=IQRhXtzYWrA)
 * [NE2000 Ethernet](https://www.youtube.com/watch?v=1M6w4Fwq4uA)
 * [EtherDFS File Sharing](https://www.youtube.com/watch?v=aXr2Xm-WAcA)
+* [XT Hard Disk Installation](https://www.youtube.com/watch?v=2-VcptzPMbY)
 
